@@ -1,4 +1,4 @@
-env.info("--- SKYNET VERSION: mobile | BUILD TIME: 15.04.2023 1917Z ---")
+env.info("--- SKYNET VERSION: mobile | BUILD TIME: 15.04.2023 1921Z ---")
 do
 --this file contains the required units per sam type
 samTypesDB = {
@@ -1876,7 +1876,10 @@ end
 function SkynetIADSAbstractDCSObjectWrapper:setDCSRepresentation(representation)
 	self.dcsRepresentation = representation
 	if self.dcsRepresentation then
-		self.dcsName = self:getDCSRepresentation():getName()
+		self.dcsName = self.dcsRepresentation:getName()
+		if (self.dcsName == nil or string.len(self.dcsName) == 0) and self.dcsRepresentation.id_ then
+			self.dcsName = self.dcsRepresentation.id_
+		end
 	end
 end
 
@@ -2256,6 +2259,13 @@ function SkynetIADSAbstractRadarElement:informChildrenOfStateChange()
 		childRadar:setToCorrectAutonomousState()
 	end
 	self.iads:getMooseConnector():update()
+end
+
+function SkynetIADSAbstractRadarElement:hasWorkingSearchRadars()
+	for i, searchRadar in pairs(self.searchRadars) do
+		if searchRadar:isRadarWorking() then return true end
+	end
+	return false
 end
 
 function SkynetIADSAbstractRadarElement:setToCorrectAutonomousState()
@@ -2692,11 +2702,11 @@ end
 
 function SkynetIADSAbstractRadarElement:isTargetInRange(target)
 
+	local hasWorkingSearchRadar = self:hasWorkingSearchRadars()
 	local isSearchRadarInRange = false
 	local isTrackingRadarInRange = false
 	local isLauncherInRange = false
 	
-	local isSearchRadarInRange = ( #self.searchRadars == 0 )
 	for i = 1, #self.searchRadars do
 		local searchRadar = self.searchRadars[i]
 		if searchRadar:isInRange(target) then
@@ -2705,7 +2715,7 @@ function SkynetIADSAbstractRadarElement:isTargetInRange(target)
 		end
 	end
 	
-	if self.goLiveRange == SkynetIADSAbstractRadarElement.GO_LIVE_WHEN_IN_KILL_ZONE then
+	if not hasWorkingSearchRadar or self.goLiveRange == SkynetIADSAbstractRadarElement.GO_LIVE_WHEN_IN_KILL_ZONE then
 		
 		isLauncherInRange = ( #self.launchers == 0 )
 		for i = 1, #self.launchers do
@@ -2728,7 +2738,7 @@ function SkynetIADSAbstractRadarElement:isTargetInRange(target)
 		isLauncherInRange = true
 		isTrackingRadarInRange = true
 	end
-	return  (isSearchRadarInRange and isTrackingRadarInRange and isLauncherInRange )
+	return  ((isSearchRadarInRange or not hasWorkingSearchRadar) and isTrackingRadarInRange and isLauncherInRange )
 end
 
 function SkynetIADSAbstractRadarElement:isInRadarDetectionRangeOf(abstractRadarElement)
@@ -2910,22 +2920,24 @@ function SkynetIADSAbstractRadarElement:informOfHARM(harmContact)
 	local radars = self:getRadars()
 		for j = 1, #radars do
 			local radar = radars[j]
-			local distanceNM =  mist.utils.metersToNM(self:getDistanceInMetersToContact(radar, harmContact:getPosition().p))
-			local harmToSAMHeading = mist.utils.toDegree(mist.utils.getHeadingPoints(harmContact:getPosition().p, radar:getPosition().p))
-			local harmToSAMAspect = self:calculateAspectInDegrees(harmContact:getMagneticHeading(), harmToSAMHeading)
-			local speedKT = harmContact:getGroundSpeedInKnots(0)
-			local secondsToImpact = self:getSecondsToImpact(distanceNM, speedKT)
-			--TODO: use tti instead of distanceNM?
-			-- when iterating through the radars, store shortest tti and work with that value??
-			if ( harmToSAMAspect < SkynetIADSAbstractRadarElement.HARM_TO_SAM_ASPECT and distanceNM < SkynetIADSAbstractRadarElement.HARM_LOOKAHEAD_NM ) then
-				self:addObjectIdentifiedAsHARM(harmContact)
-				if ( #self:getPointDefences() > 0 and self:pointDefencesGoLive() == true and self.iads:getDebugSettings().harmDefence ) then
-						self.iads:printOutputToLog("POINT DEFENCES GOING LIVE FOR: "..self:getDCSName().." | TTI: "..secondsToImpact)
-				end
-				--self.iads:printOutputToLog("Ignore HARM shutdown: "..tostring(self:shallIgnoreHARMShutdown()))
-				if ( self:getIsAPointDefence() == false and ( self:isDefendingHARM() == false or ( self:getHARMShutdownTime() < secondsToImpact ) ) and self:shallIgnoreHARMShutdown() == false) then
-					self:goSilentToEvadeHARM(secondsToImpact)
-					break
+			if radar:isExist() then
+				local distanceNM =  mist.utils.metersToNM(self:getDistanceInMetersToContact(radar, harmContact:getPosition().p))
+				local harmToSAMHeading = mist.utils.toDegree(mist.utils.getHeadingPoints(harmContact:getPosition().p, radar:getPosition().p))
+				local harmToSAMAspect = self:calculateAspectInDegrees(harmContact:getMagneticHeading(), harmToSAMHeading)
+				local speedKT = harmContact:getGroundSpeedInKnots(0)
+				local secondsToImpact = self:getSecondsToImpact(distanceNM, speedKT)
+				--TODO: use tti instead of distanceNM?
+				-- when iterating through the radars, store shortest tti and work with that value??
+				if ( harmToSAMAspect < SkynetIADSAbstractRadarElement.HARM_TO_SAM_ASPECT and distanceNM < SkynetIADSAbstractRadarElement.HARM_LOOKAHEAD_NM ) then
+					self:addObjectIdentifiedAsHARM(harmContact)
+					if ( #self:getPointDefences() > 0 and self:pointDefencesGoLive() == true and self.iads:getDebugSettings().harmDefence ) then
+							self.iads:printOutputToLog("POINT DEFENCES GOING LIVE FOR: "..self:getDCSName().." | TTI: "..secondsToImpact)
+					end
+					--self.iads:printOutputToLog("Ignore HARM shutdown: "..tostring(self:shallIgnoreHARMShutdown()))
+					if ( self:getIsAPointDefence() == false and ( self:isDefendingHARM() == false or ( self:getHARMShutdownTime() < secondsToImpact ) ) and self:shallIgnoreHARMShutdown() == false) then
+						self:goSilentToEvadeHARM(secondsToImpact)
+						break
+					end
 				end
 			end
 		end
@@ -3585,6 +3597,11 @@ function SkynetIADSSamSite:informOfContact(contact)
 	if ( self.targetsInRange == false and self:areGoLiveConstraintsSatisfied(contact) == true and self:isTargetInRange(contact) and ( contact:isIdentifiedAsHARM() == false or ( contact:isIdentifiedAsHARM() == true and self:getCanEngageHARM() == true ) ) ) then
 		self:goLive()
 		self.targetsInRange = true
+		
+		--this way we make all units aware of the first contact that triggered this SAM site
+		for i, unit in pairs(self:getDCSRepresentation():getUnits()) do 
+			unit:getController():knowTarget(contact:getDCSRepresentation())
+		end
 	end
 end
 

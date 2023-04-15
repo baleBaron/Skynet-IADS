@@ -126,6 +126,15 @@ function SkynetIADSSamSite:relocateNow(newSiteZone)
 end
 
 function SkynetIADSSamSite.evaluateMobilePhase(self)
+	if self.isDestroyed() then 
+		if self.mobilePhaseEvaluateTaskID ~= nil then
+			mist.removeFunction(self.mobilePhaseEvaluateTaskID)
+			self.mobilePhaseEvaluateTaskID = nil
+		end
+		
+		return 
+	end
+
 	if self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_HIDE and self.goLiveTime > 0 then
 		--emission has begun, entering shooting phase
 		self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_SHOOT
