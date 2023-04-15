@@ -15,7 +15,8 @@ function SkynetIADSSamSite:create(samGroup, iads)
 	sam.goLiveConstraints = {}
 	sam.actMobile = false
 	sam.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_HIDE
-	sam.mobileSiteZone = nil
+	sam.mobileSiteZone = nil -- current site we are moving towards
+	sam.mobileScootZones = nil -- pre defined nice spots to select, may be nil
 	sam.mobilePhaseEvaluateTaskID = nil
 	sam.mobilePhaseEmissionTimeMax = 60*3     -- max time from going live until packing up and relocating
 	sam.mobileScootDistanceMin = 1000
@@ -90,12 +91,13 @@ function SkynetIADSSamSite:getActMobile()
 	return self.actMobile
 end
 
-function SkynetIADSSamSite:setActMobile(enable, emissionTimeMax, scootDistanceMin, scootDistanceMax)
+function SkynetIADSSamSite:setActMobile(enable, emissionTimeMax, scootDistanceMin, scootDistanceMax, scootZones)
 	if not self.actMobile and enable then
 		self.actMobile = true
 		if emissionTimeMax then self.mobilePhaseEmissionTimeMax = emissionTimeMax end
 		if scootDistanceMin then self.mobileScootDistanceMin = scootDistanceMin end
 		if scootDistanceMax then self.mobileScootDistanceMax = scootDistanceMax end
+		self.mobileScootZones = scootZones
 		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},1, 5)
 	elseif self.actMobile and not enable then
 		--TODO: implement this
@@ -115,7 +117,7 @@ function SkynetIADSSamSite:relocateNow(newSiteZone)
 		if self.mobilePhaseEvaluateTaskID ~= nil then 
 			mist.removeFunction(self.mobilePhaseEvaluateTaskID) 
 		end
-		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},timer.getTime() + 60*5,5)
+		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},1,5)
 	end
 	self.mobileSiteZone = newSiteZone
 	mist.groupToRandomZone(self:getDCSRepresentation(), self.mobileSiteZone, "diamond", nil, 80, true)
@@ -129,25 +131,38 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 		self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_SHOOT
 		mist.removeFunction(self.mobilePhaseEvaluateTaskID)
 		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},self.goLiveTime + self.mobilePhaseEmissionTimeMax, 5)
-	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT and not self:hasMissilesInFlight() then
-		--find a new location TODO: implement possibility to supply pre-defined locations
-		local vec2
-		for i = 1, 10 do
-			vec2 = mist.getRandPointInCircle(mist.getLeadPos(self:getDCSRepresentation()),self.mobileScootDistanceMax, self.mobileScootDistanceMin)
-			if land.getSurfaceType(vec2) == land.SurfaceType.LAND and mist.terrainHeightDiff(vec2,50) < 5 then
-				break
+	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT then
+		--find a new location
+		local newZone
+		if self.mobileScootZones == nil then --pick arbitrary direction
+			local vec2
+			for i = 1, 10 do
+				vec2 = mist.getRandPointInCircle(mist.getLeadPos(self:getDCSRepresentation()),self.mobileScootDistanceMax, self.mobileScootDistanceMin)
+				if land.getSurfaceType(vec2) == land.SurfaceType.LAND and mist.terrainHeightDiff(vec2,50) < 5 then
+					break
+				end
+			end
+			
+			newZone = {}
+			newZone.radius = 50
+			newZone.point = {x = vec2.x, y = land.getHeight(vec2), z = vec2.y}
+		else -- use pre-defined zones
+			--TODO: keep track of hot spots 
+			--TODO: coordinate within battalion
+			local leadPos = mist.getLeadPos(self:getDCSRepresentation())
+			for i = 1, 10 do --if we can't find a nice location, just use whatever
+				newZone = self.mobileScootZones[math.random(1, #self.mobileScootZones)]
+				local distance = mist.utils.get3DDist(leadPos, newZone.point)
+				if distance > self.mobileScootDistanceMin and distance < self.mobileScootDistanceMax then
+					break
+				end
 			end
 		end
-		
-		local newZone = {}
-		newZone.radius = 50
-		newZone.point = {x = vec2.x, y = land.getHeight(vec2), z = vec2.y}
-
 		self:relocateNow(newZone)
 	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SCOOT then
 		--check if we are close enough to our destination
 		if mist.utils.get3DDist(mist.getLeadPos(self:getDCSRepresentation()), self.mobileSiteZone.point) < self.mobileSiteZone.radius then
-			--new place, setup and wait
+			--close enough, setup and wait
 			self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_HIDE
 			self.goLiveTime = 0
 			self:removeGoLiveConstraint("relocating")
