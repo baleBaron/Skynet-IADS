@@ -1,4 +1,4 @@
-env.info("--- SKYNET VERSION: mobile | BUILD TIME: 15.04.2023 1921Z ---")
+env.info("--- SKYNET VERSION: mobile | BUILD TIME: 17.04.2023 1955Z ---")
 do
 --this file contains the required units per sam type
 samTypesDB = {
@@ -2261,13 +2261,6 @@ function SkynetIADSAbstractRadarElement:informChildrenOfStateChange()
 	self.iads:getMooseConnector():update()
 end
 
-function SkynetIADSAbstractRadarElement:hasWorkingSearchRadars()
-	for i, searchRadar in pairs(self.searchRadars) do
-		if searchRadar:isRadarWorking() then return true end
-	end
-	return false
-end
-
 function SkynetIADSAbstractRadarElement:setToCorrectAutonomousState()
 	local parents = self:getParentRadars()
 	for i = 1, #parents do
@@ -2702,11 +2695,11 @@ end
 
 function SkynetIADSAbstractRadarElement:isTargetInRange(target)
 
-	local hasWorkingSearchRadar = self:hasWorkingSearchRadars()
 	local isSearchRadarInRange = false
 	local isTrackingRadarInRange = false
 	local isLauncherInRange = false
 	
+	local isSearchRadarInRange = ( #self.searchRadars == 0 )
 	for i = 1, #self.searchRadars do
 		local searchRadar = self.searchRadars[i]
 		if searchRadar:isInRange(target) then
@@ -2715,7 +2708,7 @@ function SkynetIADSAbstractRadarElement:isTargetInRange(target)
 		end
 	end
 	
-	if not hasWorkingSearchRadar or self.goLiveRange == SkynetIADSAbstractRadarElement.GO_LIVE_WHEN_IN_KILL_ZONE then
+	if self.goLiveRange == SkynetIADSAbstractRadarElement.GO_LIVE_WHEN_IN_KILL_ZONE then
 		
 		isLauncherInRange = ( #self.launchers == 0 )
 		for i = 1, #self.launchers do
@@ -2738,7 +2731,7 @@ function SkynetIADSAbstractRadarElement:isTargetInRange(target)
 		isLauncherInRange = true
 		isTrackingRadarInRange = true
 	end
-	return  ((isSearchRadarInRange or not hasWorkingSearchRadar) and isTrackingRadarInRange and isLauncherInRange )
+	return  (isSearchRadarInRange and isTrackingRadarInRange and isLauncherInRange )
 end
 
 function SkynetIADSAbstractRadarElement:isInRadarDetectionRangeOf(abstractRadarElement)
@@ -2920,24 +2913,22 @@ function SkynetIADSAbstractRadarElement:informOfHARM(harmContact)
 	local radars = self:getRadars()
 		for j = 1, #radars do
 			local radar = radars[j]
-			if radar:isExist() then
-				local distanceNM =  mist.utils.metersToNM(self:getDistanceInMetersToContact(radar, harmContact:getPosition().p))
-				local harmToSAMHeading = mist.utils.toDegree(mist.utils.getHeadingPoints(harmContact:getPosition().p, radar:getPosition().p))
-				local harmToSAMAspect = self:calculateAspectInDegrees(harmContact:getMagneticHeading(), harmToSAMHeading)
-				local speedKT = harmContact:getGroundSpeedInKnots(0)
-				local secondsToImpact = self:getSecondsToImpact(distanceNM, speedKT)
-				--TODO: use tti instead of distanceNM?
-				-- when iterating through the radars, store shortest tti and work with that value??
-				if ( harmToSAMAspect < SkynetIADSAbstractRadarElement.HARM_TO_SAM_ASPECT and distanceNM < SkynetIADSAbstractRadarElement.HARM_LOOKAHEAD_NM ) then
-					self:addObjectIdentifiedAsHARM(harmContact)
-					if ( #self:getPointDefences() > 0 and self:pointDefencesGoLive() == true and self.iads:getDebugSettings().harmDefence ) then
-							self.iads:printOutputToLog("POINT DEFENCES GOING LIVE FOR: "..self:getDCSName().." | TTI: "..secondsToImpact)
-					end
-					--self.iads:printOutputToLog("Ignore HARM shutdown: "..tostring(self:shallIgnoreHARMShutdown()))
-					if ( self:getIsAPointDefence() == false and ( self:isDefendingHARM() == false or ( self:getHARMShutdownTime() < secondsToImpact ) ) and self:shallIgnoreHARMShutdown() == false) then
-						self:goSilentToEvadeHARM(secondsToImpact)
-						break
-					end
+			local distanceNM =  mist.utils.metersToNM(self:getDistanceInMetersToContact(radar, harmContact:getPosition().p))
+			local harmToSAMHeading = mist.utils.toDegree(mist.utils.getHeadingPoints(harmContact:getPosition().p, radar:getPosition().p))
+			local harmToSAMAspect = self:calculateAspectInDegrees(harmContact:getMagneticHeading(), harmToSAMHeading)
+			local speedKT = harmContact:getGroundSpeedInKnots(0)
+			local secondsToImpact = self:getSecondsToImpact(distanceNM, speedKT)
+			--TODO: use tti instead of distanceNM?
+			-- when iterating through the radars, store shortest tti and work with that value??
+			if ( harmToSAMAspect < SkynetIADSAbstractRadarElement.HARM_TO_SAM_ASPECT and distanceNM < SkynetIADSAbstractRadarElement.HARM_LOOKAHEAD_NM ) then
+				self:addObjectIdentifiedAsHARM(harmContact)
+				if ( #self:getPointDefences() > 0 and self:pointDefencesGoLive() == true and self.iads:getDebugSettings().harmDefence ) then
+						self.iads:printOutputToLog("POINT DEFENCES GOING LIVE FOR: "..self:getDCSName().." | TTI: "..secondsToImpact)
+				end
+				--self.iads:printOutputToLog("Ignore HARM shutdown: "..tostring(self:shallIgnoreHARMShutdown()))
+				if ( self:getIsAPointDefence() == false and ( self:isDefendingHARM() == false or ( self:getHARMShutdownTime() < secondsToImpact ) ) and self:shallIgnoreHARMShutdown() == false) then
+					self:goSilentToEvadeHARM(secondsToImpact)
+					break
 				end
 			end
 		end
@@ -3597,11 +3588,6 @@ function SkynetIADSSamSite:informOfContact(contact)
 	if ( self.targetsInRange == false and self:areGoLiveConstraintsSatisfied(contact) == true and self:isTargetInRange(contact) and ( contact:isIdentifiedAsHARM() == false or ( contact:isIdentifiedAsHARM() == true and self:getCanEngageHARM() == true ) ) ) then
 		self:goLive()
 		self.targetsInRange = true
-		
-		--this way we make all units aware of the first contact that triggered this SAM site
-		for i, unit in pairs(self:getDCSRepresentation():getUnits()) do 
-			unit:getController():knowTarget(contact:getDCSRepresentation())
-		end
 	end
 end
 
@@ -3621,6 +3607,7 @@ function SkynetIADSSamSite:setActMobile(enable, emissionTimeMax, scootDistanceMi
 		--TODO: implement this
 		self.actMobile = false
 	end	
+	return self
 end
 
 function SkynetIADSSamSite:relocateNow(newSiteZone)
@@ -3638,21 +3625,45 @@ function SkynetIADSSamSite:relocateNow(newSiteZone)
 		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},1,5)
 	end
 	self.mobileSiteZone = newSiteZone
-	mist.groupToRandomZone(self:getDCSRepresentation(), self.mobileSiteZone, "diamond", nil, 80, true)
 	
-	--TODO: have mobile point defences follow, if possible
+	local formation
+	local ignoreRoads
+	if land.getSurfaceType({x = self.mobileSiteZone.point.x,y = self.mobileSiteZone.point.z}) == land.SurfaceType.ROAD then
+		formation = "On road"
+		ignoreRoads = false
+	else
+		formation = "diamond"
+		ignoreRoads = true
+	end
+	
+	mist.groupToRandomZone(self:getDCSRepresentation(), self.mobileSiteZone, formation, nil, 80, ignoreRoads)
+	
+	--have mobile point defences follow, if possible
+	for i = 1, #self.pointDefences do
+		if self.pointDefences[i]:getActMobile() then
+			self.pointDefences[i]:relocateNow(newSiteZone)
+		end
+	end
 end
 
 function SkynetIADSSamSite.evaluateMobilePhase(self)
+	if self:isDestroyed() then 
+		if self.mobilePhaseEvaluateTaskID ~= nil then
+			mist.removeFunction(self.mobilePhaseEvaluateTaskID)
+			self.mobilePhaseEvaluateTaskID = nil
+		end
+		return 
+	end
+
 	if self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_HIDE and self.goLiveTime > 0 then
 		--emission has begun, entering shooting phase
 		self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_SHOOT
 		mist.removeFunction(self.mobilePhaseEvaluateTaskID)
 		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},self.goLiveTime + self.mobilePhaseEmissionTimeMax, 5)
-	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT then
+	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT then --TODO: we could check self:hasMissilesInFlight() and keep emitting while guiding a missile
 		--find a new location
 		local newZone
-		if self.mobileScootZones == nil then --pick arbitrary direction
+		if self.mobileScootZones == nil then --no pre-defined zones found, pick arbitrary direction
 			local vec2
 			for i = 1, 10 do
 				vec2 = mist.getRandPointInCircle(mist.getLeadPos(self:getDCSRepresentation()),self.mobileScootDistanceMax, self.mobileScootDistanceMin)
@@ -3668,8 +3679,8 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 			--TODO: keep track of hot spots 
 			--TODO: coordinate within battalion
 			local leadPos = mist.getLeadPos(self:getDCSRepresentation())
-			for i = 1, 10 do --if we can't find a nice location, just use whatever
-				newZone = self.mobileScootZones[math.random(1, #self.mobileScootZones)]
+			for i = 1, 10 do
+				newZone = mist.DBs.zonesByName[self.mobileScootZones[math.random(1, #self.mobileScootZones)]]
 				local distance = mist.utils.get3DDist(leadPos, newZone.point)
 				if distance > self.mobileScootDistanceMin and distance < self.mobileScootDistanceMax then
 					break
@@ -3679,6 +3690,7 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 		self:relocateNow(newZone)
 	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SCOOT then
 		--check if we are close enough to our destination
+		--TODO: better check
 		if mist.utils.get3DDist(mist.getLeadPos(self:getDCSRepresentation()), self.mobileSiteZone.point) < self.mobileSiteZone.radius then
 			--close enough, setup and wait
 			self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_HIDE

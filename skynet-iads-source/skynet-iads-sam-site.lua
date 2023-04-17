@@ -103,6 +103,7 @@ function SkynetIADSSamSite:setActMobile(enable, emissionTimeMax, scootDistanceMi
 		--TODO: implement this
 		self.actMobile = false
 	end	
+	return self
 end
 
 function SkynetIADSSamSite:relocateNow(newSiteZone)
@@ -120,18 +121,33 @@ function SkynetIADSSamSite:relocateNow(newSiteZone)
 		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},1,5)
 	end
 	self.mobileSiteZone = newSiteZone
-	mist.groupToRandomZone(self:getDCSRepresentation(), self.mobileSiteZone, "diamond", nil, 80, true)
 	
-	--TODO: have mobile point defences follow, if possible
+	local formation
+	local ignoreRoads
+	if land.getSurfaceType({x = self.mobileSiteZone.point.x,y = self.mobileSiteZone.point.z}) == land.SurfaceType.ROAD then
+		formation = "On road"
+		ignoreRoads = false
+	else
+		formation = "diamond"
+		ignoreRoads = true
+	end
+	
+	mist.groupToRandomZone(self:getDCSRepresentation(), self.mobileSiteZone, formation, nil, 80, ignoreRoads)
+	
+	--have mobile point defences follow, if possible
+	for i = 1, #self.pointDefences do
+		if self.pointDefences[i]:getActMobile() then
+			self.pointDefences[i]:relocateNow(newSiteZone)
+		end
+	end
 end
 
 function SkynetIADSSamSite.evaluateMobilePhase(self)
-	if self.isDestroyed() then 
+	if self:isDestroyed() then 
 		if self.mobilePhaseEvaluateTaskID ~= nil then
 			mist.removeFunction(self.mobilePhaseEvaluateTaskID)
 			self.mobilePhaseEvaluateTaskID = nil
 		end
-		
 		return 
 	end
 
@@ -140,10 +156,10 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 		self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_SHOOT
 		mist.removeFunction(self.mobilePhaseEvaluateTaskID)
 		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},self.goLiveTime + self.mobilePhaseEmissionTimeMax, 5)
-	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT then
+	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT then --TODO: we could check self:hasMissilesInFlight() and keep emitting while guiding a missile
 		--find a new location
 		local newZone
-		if self.mobileScootZones == nil then --pick arbitrary direction
+		if self.mobileScootZones == nil then --no pre-defined zones found, pick arbitrary direction
 			local vec2
 			for i = 1, 10 do
 				vec2 = mist.getRandPointInCircle(mist.getLeadPos(self:getDCSRepresentation()),self.mobileScootDistanceMax, self.mobileScootDistanceMin)
@@ -159,8 +175,8 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 			--TODO: keep track of hot spots 
 			--TODO: coordinate within battalion
 			local leadPos = mist.getLeadPos(self:getDCSRepresentation())
-			for i = 1, 10 do --if we can't find a nice location, just use whatever
-				newZone = self.mobileScootZones[math.random(1, #self.mobileScootZones)]
+			for i = 1, 10 do
+				newZone = mist.DBs.zonesByName[self.mobileScootZones[math.random(1, #self.mobileScootZones)]]
 				local distance = mist.utils.get3DDist(leadPos, newZone.point)
 				if distance > self.mobileScootDistanceMin and distance < self.mobileScootDistanceMax then
 					break
@@ -170,6 +186,7 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 		self:relocateNow(newZone)
 	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SCOOT then
 		--check if we are close enough to our destination
+		--TODO: better check
 		if mist.utils.get3DDist(mist.getLeadPos(self:getDCSRepresentation()), self.mobileSiteZone.point) < self.mobileSiteZone.radius then
 			--close enough, setup and wait
 			self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_HIDE
