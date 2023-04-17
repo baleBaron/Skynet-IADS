@@ -156,7 +156,7 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 		self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_SHOOT
 		mist.removeFunction(self.mobilePhaseEvaluateTaskID)
 		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},self.goLiveTime + self.mobilePhaseEmissionTimeMax, 5)
-	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT then --TODO: we could check self:hasMissilesInFlight() and keep emitting while guiding a missile
+	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT and not self:hasMissilesInFlight() then
 		--find a new location
 		local newZone
 		if self.mobileScootZones == nil then --no pre-defined zones found, pick arbitrary direction
