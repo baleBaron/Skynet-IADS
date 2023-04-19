@@ -144,11 +144,23 @@ end
 
 function SkynetIADSSamSite:selectNewLocation()
 	local newZone
-	if self.mobileScootZones == nil then --no pre-defined zones found, pick arbitrary direction
+	if self.mobileScootZones == nil then --no pre-defined zones found, pick arbitrary direction, prefer to be on road
 		local currentPosition = mist.getLeadPos(self:getDCSRepresentation())
-		local vec2Rand
+		
 		for i = 1, 10 do
+			local vec2Rand
 			vec2Rand = mist.getRandPointInCircle(currentPosition,self.mobileScootDistanceMax, self.mobileScootDistanceMin)
+			
+			if i <= 5 then
+				local vec2Road
+				local distance
+				vec2Road.x, vec2Road.y = land.getClosestPointOnRoads("roads",vec2Rand.x,vec2Rand.y)
+				distance = mist.utils.get2DDist(currentPosition, vec2Road)
+				if distance < self.mobileScootingDistanceMax and distance > self.mobileScootingDistanceMin then
+					vec2Rand = vec2Road
+				end
+			end
+			
 			if land.getSurfaceType(vec2Rand) == land.SurfaceType.LAND and mist.terrainHeightDiff(vec2Rand,50) < 5 then
 				break
 			end
