@@ -142,6 +142,37 @@ function SkynetIADSSamSite:relocateNow(newSiteZone)
 	end
 end
 
+function SkynetIADSSamSite:selectNewLocation()
+	local newZone
+	if self.mobileScootZones == nil then --no pre-defined zones found, pick arbitrary direction
+		local currentPosition = mist.getLeadPos(self:getDCSRepresentation())
+		local vec2Random
+		for i = 1, 10 do
+			vec2Rand = mist.getRandPointInCircle(currentPosition,self.mobileScootDistanceMax, self.mobileScootDistanceMin)
+			if land.getSurfaceType(vec2) == land.SurfaceType.LAND and mist.terrainHeightDiff(vec2Rand,50) < 5 then
+				break
+			end
+		end
+		
+		newZone = {}
+		newZone.radius = 50
+		newZone.point = {x = vec2Rand.x, y = land.getHeight(vec2Rand), z = vec2Rand.y}
+	else -- use pre-defined zones
+		--TODO: keep track of hot spots 
+		--TODO: coordinate within battalion
+		local currentPosition = mist.getLeadPos(self:getDCSRepresentation())
+		for i = 1, 10 do
+			newZone = mist.DBs.zonesByName[self.mobileScootZones[math.random(1, #self.mobileScootZones)]]
+			local distance = mist.utils.get3DDist(currentPosition, newZone.point)
+			if distance > self.mobileScootDistanceMin and distance < self.mobileScootDistanceMax then
+				break
+			end
+		end
+	end
+	
+	return newZone
+end
+
 function SkynetIADSSamSite.evaluateMobilePhase(self)
 	if self:isDestroyed() then 
 		if self.mobilePhaseEvaluateTaskID ~= nil then
@@ -158,32 +189,7 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},self.goLiveTime + self.mobilePhaseEmissionTimeMax, 5)
 	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT and not self:hasMissilesInFlight() then
 		--find a new location
-		local newZone
-		if self.mobileScootZones == nil then --no pre-defined zones found, pick arbitrary direction
-			local vec2
-			for i = 1, 10 do
-				vec2 = mist.getRandPointInCircle(mist.getLeadPos(self:getDCSRepresentation()),self.mobileScootDistanceMax, self.mobileScootDistanceMin)
-				if land.getSurfaceType(vec2) == land.SurfaceType.LAND and mist.terrainHeightDiff(vec2,50) < 5 then
-					break
-				end
-			end
-			
-			newZone = {}
-			newZone.radius = 50
-			newZone.point = {x = vec2.x, y = land.getHeight(vec2), z = vec2.y}
-		else -- use pre-defined zones
-			--TODO: keep track of hot spots 
-			--TODO: coordinate within battalion
-			local leadPos = mist.getLeadPos(self:getDCSRepresentation())
-			for i = 1, 10 do
-				newZone = mist.DBs.zonesByName[self.mobileScootZones[math.random(1, #self.mobileScootZones)]]
-				local distance = mist.utils.get3DDist(leadPos, newZone.point)
-				if distance > self.mobileScootDistanceMin and distance < self.mobileScootDistanceMax then
-					break
-				end
-			end
-		end
-		self:relocateNow(newZone)
+		self:relocateNow(self:selectNewLocation())
 	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SCOOT then
 		--check if we are close enough to our destination
 		--TODO: better check
