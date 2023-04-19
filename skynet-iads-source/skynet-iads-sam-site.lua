@@ -152,7 +152,7 @@ function SkynetIADSSamSite:selectNewLocation()
 			vec2Rand = mist.getRandPointInCircle(currentPosition,self.mobileScootDistanceMax, self.mobileScootDistanceMin)
 			
 			if i <= 5 then
-				local vec2Road
+				local vec2Road = {}
 				local distance
 				vec2Road.x, vec2Road.y = land.getClosestPointOnRoads("roads",vec2Rand.x,vec2Rand.y)
 				distance = mist.utils.get2DDist(currentPosition, vec2Road)
