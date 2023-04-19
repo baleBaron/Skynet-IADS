@@ -128,7 +128,7 @@ function SkynetIADSSamSite:relocateNow(newSiteZone)
 		formation = "On road"
 		ignoreRoads = false
 	else
-		formation = "diamond"
+		formation = "Diamond"
 		ignoreRoads = true
 	end
 	
@@ -146,10 +146,10 @@ function SkynetIADSSamSite:selectNewLocation()
 	local newZone
 	if self.mobileScootZones == nil then --no pre-defined zones found, pick arbitrary direction
 		local currentPosition = mist.getLeadPos(self:getDCSRepresentation())
-		local vec2Random
+		local vec2Rand
 		for i = 1, 10 do
 			vec2Rand = mist.getRandPointInCircle(currentPosition,self.mobileScootDistanceMax, self.mobileScootDistanceMin)
-			if land.getSurfaceType(vec2) == land.SurfaceType.LAND and mist.terrainHeightDiff(vec2Rand,50) < 5 then
+			if land.getSurfaceType(vec2Rand) == land.SurfaceType.LAND and mist.terrainHeightDiff(vec2Rand,50) < 5 then
 				break
 			end
 		end
