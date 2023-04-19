@@ -146,9 +146,9 @@ function SkynetIADSSamSite:selectNewLocation()
 	local newZone
 	if self.mobileScootZones == nil then --no pre-defined zones found, pick arbitrary direction, prefer to be on road
 		local currentPosition = mist.getLeadPos(self:getDCSRepresentation())
+		local vec2Rand
 		
 		for i = 1, 10 do
-			local vec2Rand
 			vec2Rand = mist.getRandPointInCircle(currentPosition,self.mobileScootDistanceMax, self.mobileScootDistanceMin)
 			
 			if i <= 5 then
