@@ -200,7 +200,7 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 		self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_SHOOT
 		mist.removeFunction(self.mobilePhaseEvaluateTaskID)
 		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},self.goLiveTime + self.mobilePhaseEmissionTimeMax, 5)
-	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT and not self:hasMissilesInFlight() then
+	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT and not self:hasMissilesInFlight() and not self:getIsAPointDefence() then
 		--find a new location
 		self:relocateNow(self:selectNewLocation())
 	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SCOOT then
