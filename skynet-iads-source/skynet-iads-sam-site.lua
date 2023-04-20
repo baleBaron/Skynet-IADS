@@ -161,7 +161,8 @@ function SkynetIADSSamSite:selectNewLocation()
 				end
 			end
 			
-			if land.getSurfaceType(vec2Rand) == land.SurfaceType.LAND and mist.terrainHeightDiff(vec2Rand,50) < 5 then
+			local surfaceType = land.getSurfaceType(vec2Rand)
+			if (surfaceType == land.SurfaceType.LAND or surfaceType == land.SurfaceType.ROAD) and mist.terrainHeightDiff(vec2Rand,50) < 5 then
 				break
 			end
 		end
