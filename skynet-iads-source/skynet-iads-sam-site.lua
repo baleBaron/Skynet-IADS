@@ -136,7 +136,10 @@ function SkynetIADSSamSite:relocateNow(newSiteZone)
 		ignoreRoads = true
 	end
 	
-	mist.groupToRandomZone(self:getDCSRepresentation(), self.mobileSiteZone, formation, nil, 80, ignoreRoads)
+	local mistZone = {}
+	mistZone.point = self.mobileSiteZone.point
+	mistZone.radius = 1 --move dead center
+	mist.groupToRandomZone(self:getDCSRepresentation(), mistZone, formation, nil, 80, ignoreRoads)
 	
 	--have mobile point defences follow, if possible
 	for i = 1, #self.pointDefences do
