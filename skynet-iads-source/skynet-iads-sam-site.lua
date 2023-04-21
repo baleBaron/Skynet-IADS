@@ -92,12 +92,13 @@ function SkynetIADSSamSite:getActMobile()
 end
 
 function SkynetIADSSamSite:setActMobile(enable, emissionTimeMax, scootDistanceMin, scootDistanceMax, scootZones)
+	if emissionTimeMax then self.mobilePhaseEmissionTimeMax = emissionTimeMax end
+	if scootDistanceMin then self.mobileScootDistanceMin = scootDistanceMin end
+	if scootDistanceMax then self.mobileScootDistanceMax = scootDistanceMax end
+	self:setMobileScootZones(scootZones)
+
 	if not self.actMobile and enable then
 		self.actMobile = true
-		if emissionTimeMax then self.mobilePhaseEmissionTimeMax = emissionTimeMax end
-		if scootDistanceMin then self.mobileScootDistanceMin = scootDistanceMin end
-		if scootDistanceMax then self.mobileScootDistanceMax = scootDistanceMax end
-		self.mobileScootZones = scootZones
 		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},1, 5)
 	elseif self.actMobile and not enable then
 		--TODO: implement this
