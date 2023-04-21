@@ -1,4 +1,4 @@
-env.info("--- SKYNET VERSION: baron-branch-mobile | BUILD TIME: 20.04.2023 2246Z ---")
+env.info("--- SKYNET VERSION: baron-branch-mobile | BUILD TIME: 21.04.2023 1934Z ---")
 do
 --this file contains the required units per sam type
 samTypesDB = {
@@ -3622,6 +3622,10 @@ function SkynetIADSSamSite:setActMobile(enable, emissionTimeMax, scootDistanceMi
 		self.actMobile = false
 	end	
 	return self
+end
+
+function SkynetIADSSamSite:setMobileScootZones(triggerZoneNameTable)
+	self.mobileScootZones = triggerZoneNameTable
 end
 
 function SkynetIADSSamSite:relocateNow(newSiteZone)
