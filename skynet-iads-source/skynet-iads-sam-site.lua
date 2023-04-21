@@ -111,6 +111,10 @@ function SkynetIADSSamSite:setActMobile(enable, emissionTimeMax, scootDistanceMi
 	return self
 end
 
+function SkynetIADSSamSite:setMobileScootZones(triggerZoneNameTable)
+	self.mobileScootZones = triggerZoneNameTable
+end
+
 function SkynetIADSSamSite:relocateNow(newSiteZone)
 	if self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_HIDE
 	or self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT then
