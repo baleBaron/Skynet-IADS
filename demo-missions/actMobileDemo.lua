@@ -13,7 +13,7 @@ function SkynetIADSSamSite:setGoLiveNineLine(enable)
 		local absDiff 			= math.abs(mist.utils.toDegree(contactHeading) - mist.utils.toDegree(contactHeadingSAM))
 		
 		if absDiff > 180 then 
-			absDiff = absDiff - 360 
+			absDiff = 360 - absDiff
 		end
 		
 		return absDiff > 100
