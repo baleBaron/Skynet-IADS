@@ -214,7 +214,8 @@ samTypesDB['Buk-M2'] = {
 	['name'] = {
 		['NATO'] = 'SA-17 Grizzly',
 	},
-	['harm_detection_chance'] = 90
+	['harm_detection_chance'] = 90,
+	['can_engage_harm'] = true
 }
 
 --[[

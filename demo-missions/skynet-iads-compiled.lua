@@ -1,4 +1,4 @@
-env.info("--- SKYNET VERSION: baron-branch-mobile | BUILD TIME: 21.04.2023 2155Z ---")
+env.info("--- SKYNET VERSION: baron-branch-mobile | BUILD TIME: 23.04.2023 2012Z ---")
 do
 --this file contains the required units per sam type
 samTypesDB = {
@@ -659,7 +659,8 @@ samTypesDB['Buk-M2'] = {
 	['name'] = {
 		['NATO'] = 'SA-17 Grizzly',
 	},
-	['harm_detection_chance'] = 90
+	['harm_detection_chance'] = 90,
+	['can_engage_harm'] = true
 }
 
 --[[
