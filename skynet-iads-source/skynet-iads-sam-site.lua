@@ -195,7 +195,9 @@ function SkynetIADSSamSite:selectNewLocation()
 end
 
 function SkynetIADSSamSite.evaluateMobilePhase(self)
-	if self:isDestroyed() then 
+	-- check if our mission is over
+	-- we can not do hide, shoot, scoot as autonomous
+	if self:isDestroyed() or self:getAutonomousState() == true then 
 		if self.mobilePhaseEvaluateTaskID ~= nil then
 			mist.removeFunction(self.mobilePhaseEvaluateTaskID)
 			self.mobilePhaseEvaluateTaskID = nil
