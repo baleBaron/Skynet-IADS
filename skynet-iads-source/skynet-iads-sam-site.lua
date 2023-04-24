@@ -196,7 +196,7 @@ end
 
 function SkynetIADSSamSite.evaluateMobilePhase(self)
 	-- check if our mission is over
-	-- we can not do hide, shoot, scoot as autonomous
+	-- FIXME: implement proper handling of going into or out of autonomous state
 	if self:isDestroyed() or self:getAutonomousState() == true then 
 		if self.mobilePhaseEvaluateTaskID ~= nil then
 			mist.removeFunction(self.mobilePhaseEvaluateTaskID)
@@ -216,13 +216,27 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SCOOT then
 		--check if we are close enough to our destination
 		--TODO: better check
-		if mist.utils.get3DDist(mist.getLeadPos(self:getDCSRepresentation()), self.mobileSiteZone.point) < self.mobileSiteZone.radius then
+		if mist.utils.get2DDist(mist.getLeadPos(self:getDCSRepresentation()), self.mobileSiteZone.point) < self.mobileSiteZone.radius then
 			--close enough, setup and wait
 			self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_HIDE
 			self.goLiveTime = 0
 			self:removeGoLiveConstraint("relocating")
 			self:getController():setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.RED)	
 			self:getController():setOption(AI.Option.Air.id.ROE, AI.Option.Air.val.ROE.WEAPON_FREE)
+			
+			--update radar association
+			for i=1, #self.parentRadars do
+				for c=1, #self.parentRadars[i].childRadars do
+					if self.parentRadars[i].childRadars[c] == self then
+						table.remove(self.parentRadars[i].childRadars, c)
+						break
+					end
+				end
+			end
+			self:clearParentRadars()
+			self:clearChildRadars()
+			self.iads:buildRadarCoverageForSAMSite(self)
+			self:informChildrenOfStateChange()
 		end
 	end
 end
