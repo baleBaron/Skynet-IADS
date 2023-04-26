@@ -196,8 +196,7 @@ end
 
 function SkynetIADSSamSite.evaluateMobilePhase(self)
 	-- check if our mission is over
-	-- FIXME: implement proper handling of going into or out of autonomous state
-	if self:isDestroyed() or self:getAutonomousState() == true then 
+	if self:isDestroyed() then 
 		if self.mobilePhaseEvaluateTaskID ~= nil then
 			mist.removeFunction(self.mobilePhaseEvaluateTaskID)
 			self.mobilePhaseEvaluateTaskID = nil
@@ -210,13 +209,14 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 		self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_SHOOT
 		mist.removeFunction(self.mobilePhaseEvaluateTaskID)
 		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},self.goLiveTime + self.mobilePhaseEmissionTimeMax, 5)
-	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT and not self:hasMissilesInFlight() and not self:getIsAPointDefence() then
+	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT and not self:hasMissilesInFlight() and not self:getIsAPointDefence() and self:getAutonomousState() == false then
 		--find a new location
 		self:relocateNow(self:selectNewLocation())
 	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SCOOT then
 		--check if we are close enough to our destination
 		--TODO: better check
-		if mist.utils.get2DDist(mist.getLeadPos(self:getDCSRepresentation()), self.mobileSiteZone.point) < self.mobileSiteZone.radius then
+		if mist.utils.get2DDist(mist.getLeadPos(self:getDCSRepresentation()), self.mobileSiteZone.point) < self.mobileSiteZone.radius 
+		or (self:getAutonomousState() == true and self:getAutonomousBehaviour() == SkynetIADSAbstractRadarElement.AUTONOMOUS_STATE_DCS_AI) then --FIXME: maybe make DCS_AI Autonomous keep on moving to intended spot?
 			--close enough, setup and wait
 			self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_HIDE
 			self.goLiveTime = 0
