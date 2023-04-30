@@ -15,7 +15,8 @@ function SkynetIADSSamSite:create(samGroup, iads)
 	sam.goLiveConstraints = {}
 	sam.actMobile = false
 	sam.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_HIDE
-	sam.mobileSiteZone = nil -- current site we are moving towards
+	sam.mobilePhaseBeginTime = 0 -- timestamp for when mobilePhase was changed
+	sam.mobileSiteZone = nil -- current site we are moving towards, set when phase changes to SCOOT
 	sam.mobileScootZones = nil -- pre defined nice spots to select, may be nil
 	sam.mobilePhaseEvaluateTaskID = nil
 	sam.mobilePhaseEmissionTimeMax = 60*3     -- max time from going live until packing up and relocating
@@ -120,6 +121,7 @@ function SkynetIADSSamSite:relocateNow(newSiteZone)
 	if self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_HIDE
 	or self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT then
 		self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_SCOOT
+		self.mobilePhaseBeginTime = timer.getTime()
 		self:goDark()
 		self:addGoLiveConstraint("relocating",function () return false end)
 		self:getController():setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.GREEN)	
@@ -200,6 +202,7 @@ function SkynetIADSSamSite:selectNewLocation()
 end
 
 function SkynetIADSSamSite.evaluateMobilePhase(self)
+	-- check if our mission is over
 	if self:isDestroyed() then 
 		if self.mobilePhaseEvaluateTaskID ~= nil then
 			mist.removeFunction(self.mobilePhaseEvaluateTaskID)
@@ -211,21 +214,40 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 	if self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_HIDE and self.goLiveTime > 0 then
 		--emission has begun, entering shooting phase
 		self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_SHOOT
-		mist.removeFunction(self.mobilePhaseEvaluateTaskID)
-		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},self.goLiveTime + self.mobilePhaseEmissionTimeMax, 5)
-	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT and not self:hasMissilesInFlight() and not self:getIsAPointDefence() then
+		self.mobilePhaseBeginTime = self.goLiveTime
+		if self.mobilePhaseEvaluateTaskID ~= nil then 
+			mist.removeFunction(self.mobilePhaseEvaluateTaskID) 
+		end
+		self.mobilePhaseEvaluateTaskID = mist.scheduleFunction(SkynetIADSSamSite.evaluateMobilePhase,{self},self.mobilePhaseBeginTime + self.mobilePhaseEmissionTimeMax,5)
+	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT and not self:hasMissilesInFlight() and not self:getIsAPointDefence() and self:getAutonomousState() == false then
 		--find a new location
 		self:relocateNow(self:selectNewLocation())
 	elseif self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SCOOT then
 		--check if we are close enough to our destination
 		--TODO: better check
-		if mist.utils.get3DDist(mist.getLeadPos(self:getDCSRepresentation()), self.mobileSiteZone.point) < self.mobileSiteZone.radius then
+		if mist.utils.get2DDist(mist.getLeadPos(self:getDCSRepresentation()), self.mobileSiteZone.point) < self.mobileSiteZone.radius 
+		or (self:getAutonomousState() == true and self:getAutonomousBehaviour() == SkynetIADSAbstractRadarElement.AUTONOMOUS_STATE_DCS_AI) then --FIXME: maybe make DCS_AI Autonomous keep on moving to intended spot?
 			--close enough, setup and wait
 			self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_HIDE
+			self.mobilePhaseBeginTime = timer.getTime()
 			self.goLiveTime = 0
 			self:removeGoLiveConstraint("relocating")
 			self:getController():setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.RED)	
 			self:getController():setOption(AI.Option.Air.id.ROE, AI.Option.Air.val.ROE.WEAPON_FREE)
+			
+			--update radar association
+			for i=1, #self.parentRadars do
+				for c=1, #self.parentRadars[i].childRadars do
+					if self.parentRadars[i].childRadars[c] == self then
+						table.remove(self.parentRadars[i].childRadars, c)
+						break
+					end
+				end
+			end
+			self:clearParentRadars()
+			self:clearChildRadars()
+			self.iads:buildRadarCoverageForSAMSite(self)
+			self:informChildrenOfStateChange()
 		end
 	end
 end
