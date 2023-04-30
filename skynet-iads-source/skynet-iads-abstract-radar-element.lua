@@ -715,6 +715,11 @@ function SkynetIADSAbstractRadarElement:goSilentToEvadeHARM(timeToImpact)
 	end
 	self.harmSilenceID = mist.scheduleFunction(SkynetIADSAbstractRadarElement.finishHarmDefence, {self}, timer.getTime() + self.harmShutdownTime, 1)
 	self:goDark()
+	
+	-- if we are a mobile SkynetIADSSamSite and harmShutdownTime exceeds mobileMaxEmissionTime, we might as well relocate right now
+	if(getmetatable(self) == SkynetIADSSamSite and self:getActMobile() and not self:getIsAPointDefence() and not self:getAutonomousState() and self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT and timer.getTime() + self.harmShutdownTime > self.mobilePhaseBeginTime + self.mobilePhaseEmissionTimeMax) then
+		self:relocateNow(self:selectNewLocation())
+	end
 end
 
 function SkynetIADSAbstractRadarElement:getHARMShutdownTime()
