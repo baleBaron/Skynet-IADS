@@ -122,10 +122,12 @@ function SkynetIADSSamSite:relocateNow(newSiteZone)
 	or self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT then
 		self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_SCOOT
 		self.mobilePhaseBeginTime = timer.getTime()
-		self:goDark()
-		self:addGoLiveConstraint("relocating",function () return false end)
-		self:getController():setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.GREEN)	
-		self:getController():setOption(AI.Option.Air.id.ROE, AI.Option.Air.val.ROE.WEAPON_HOLD)
+		if not self.dataBaseSupportedTypesCanFireOnMarch then
+			self:goDark()
+			self:addGoLiveConstraint("relocating",function () return false end)
+			self:getController():setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.GREEN)	
+			self:getController():setOption(AI.Option.Air.id.ROE, AI.Option.Air.val.ROE.WEAPON_HOLD)
+		end
 			
 		if self.mobilePhaseEvaluateTaskID ~= nil then 
 			mist.removeFunction(self.mobilePhaseEvaluateTaskID) 
@@ -231,9 +233,11 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 			self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_HIDE
 			self.mobilePhaseBeginTime = timer.getTime()
 			self.goLiveTime = 0
-			self:removeGoLiveConstraint("relocating")
-			self:getController():setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.RED)	
-			self:getController():setOption(AI.Option.Air.id.ROE, AI.Option.Air.val.ROE.WEAPON_FREE)
+			if not self.dataBaseSupportedTypesCanFireOnMarch then
+				self:removeGoLiveConstraint("relocating")
+				self:getController():setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.RED)	
+				self:getController():setOption(AI.Option.Air.id.ROE, AI.Option.Air.val.ROE.WEAPON_FREE)
+			end
 			
 			--update radar association
 			for i=1, #self.parentRadars do

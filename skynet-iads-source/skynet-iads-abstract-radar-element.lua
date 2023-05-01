@@ -49,6 +49,7 @@ function SkynetIADSAbstractRadarElement:create(dcsElementWithRadar, iads)
 	instance.isAPointDefence = false
 	instance.canEngageHARM = false
 	instance.dataBaseSupportedTypesCanEngageHARM = false
+	instance.dataBaseSupportedTypesCanFireOnMarch = false
 	-- 5 seconds seems to be a good value for the sam site to find the target with its organic radar
 	instance.noCacheActiveForSecondsAfterGoLive = 5
 	return instance
@@ -392,6 +393,7 @@ function SkynetIADSAbstractRadarElement:setupElements()
 			or (hasSearchRadar and hasLauncher and #self.searchRadars > 0 and #self.launchers > 0) then
 			self:setHARMDetectionChance(dataType['harm_detection_chance'])
 			self.dataBaseSupportedTypesCanEngageHARM = dataType['can_engage_harm'] 
+			self.dataBaseSupportedTypesCanFireOnMarch = dataType['fire_on_march']
 			self:setCanEngageHARM(self.dataBaseSupportedTypesCanEngageHARM)
 			local natoName = dataType['name']['NATO']
 			self:buildNatoName(natoName)

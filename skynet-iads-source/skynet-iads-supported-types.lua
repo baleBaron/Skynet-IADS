@@ -263,6 +263,7 @@ samTypesDB = {
 		['name'] = {
 			['NATO'] = 'SA-19 Grison',
 		},
+		['fire_on_march'] = true
 	},		
 	['Osa'] = {
 		['type'] = 'single',
@@ -324,7 +325,8 @@ samTypesDB = {
 			['NATO'] = 'SA-15 Gauntlet',
 		},
 		['harm_detection_chance'] = 90,
-		['can_engage_harm'] = true
+		['can_engage_harm'] = true,
+		['fire_on_march'] = true
 		
 	},
 	['Gepard'] = {
