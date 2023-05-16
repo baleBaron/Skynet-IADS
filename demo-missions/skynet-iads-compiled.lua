@@ -1,4 +1,4 @@
-env.info("--- SKYNET VERSION: baron-branch-mobile | BUILD TIME: 30.04.2023 1115Z ---")
+env.info("--- SKYNET VERSION: baron-branch | BUILD TIME: 16.05.2023 0646Z ---")
 do
 --this file contains the required units per sam type
 samTypesDB = {
@@ -264,6 +264,7 @@ samTypesDB = {
 		['name'] = {
 			['NATO'] = 'SA-19 Grison',
 		},
+		['fire_on_march'] = true
 	},		
 	['Osa'] = {
 		['type'] = 'single',
@@ -325,7 +326,8 @@ samTypesDB = {
 			['NATO'] = 'SA-15 Gauntlet',
 		},
 		['harm_detection_chance'] = 90,
-		['can_engage_harm'] = true
+		['can_engage_harm'] = true,
+		['fire_on_march'] = true
 		
 	},
 	['Gepard'] = {
@@ -2157,6 +2159,7 @@ function SkynetIADSAbstractRadarElement:create(dcsElementWithRadar, iads)
 	instance.isAPointDefence = false
 	instance.canEngageHARM = false
 	instance.dataBaseSupportedTypesCanEngageHARM = false
+	instance.dataBaseSupportedTypesCanFireOnMarch = false
 	-- 5 seconds seems to be a good value for the sam site to find the target with its organic radar
 	instance.noCacheActiveForSecondsAfterGoLive = 5
 	return instance
@@ -2500,6 +2503,7 @@ function SkynetIADSAbstractRadarElement:setupElements()
 			or (hasSearchRadar and hasLauncher and #self.searchRadars > 0 and #self.launchers > 0) then
 			self:setHARMDetectionChance(dataType['harm_detection_chance'])
 			self.dataBaseSupportedTypesCanEngageHARM = dataType['can_engage_harm'] 
+			self.dataBaseSupportedTypesCanFireOnMarch = dataType['fire_on_march']
 			self:setCanEngageHARM(self.dataBaseSupportedTypesCanEngageHARM)
 			local natoName = dataType['name']['NATO']
 			self:buildNatoName(natoName)
@@ -3641,10 +3645,12 @@ function SkynetIADSSamSite:relocateNow(newSiteZone)
 	or self.mobilePhase == SkynetIADSSamSite.MOBILE_PHASE_SHOOT then
 		self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_SCOOT
 		self.mobilePhaseBeginTime = timer.getTime()
-		self:goDark()
-		self:addGoLiveConstraint("relocating",function () return false end)
-		self:getController():setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.GREEN)	
-		self:getController():setOption(AI.Option.Air.id.ROE, AI.Option.Air.val.ROE.WEAPON_HOLD)
+		if not self.dataBaseSupportedTypesCanFireOnMarch then
+			self:goDark()
+			self:addGoLiveConstraint("relocating",function () return false end)
+			self:getController():setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.GREEN)	
+			self:getController():setOption(AI.Option.Air.id.ROE, AI.Option.Air.val.ROE.WEAPON_HOLD)
+		end
 			
 		if self.mobilePhaseEvaluateTaskID ~= nil then 
 			mist.removeFunction(self.mobilePhaseEvaluateTaskID) 
@@ -3750,9 +3756,11 @@ function SkynetIADSSamSite.evaluateMobilePhase(self)
 			self.mobilePhase = SkynetIADSSamSite.MOBILE_PHASE_HIDE
 			self.mobilePhaseBeginTime = timer.getTime()
 			self.goLiveTime = 0
-			self:removeGoLiveConstraint("relocating")
-			self:getController():setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.RED)	
-			self:getController():setOption(AI.Option.Air.id.ROE, AI.Option.Air.val.ROE.WEAPON_FREE)
+			if not self.dataBaseSupportedTypesCanFireOnMarch then
+				self:removeGoLiveConstraint("relocating")
+				self:getController():setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.RED)	
+				self:getController():setOption(AI.Option.Air.id.ROE, AI.Option.Air.val.ROE.WEAPON_FREE)
+			end
 			
 			--update radar association
 			for i=1, #self.parentRadars do
