@@ -1,7 +1,7 @@
 env.info("--- SKYNET VERSION: baron-branch | BUILD TIME: 16.05.2023 0646Z ---")
 do
 --this file contains the required units per sam type
-samTypesDB = {
+samTypesDB = {	
 	['S-200'] = {
         ['type'] = 'complex',
         ['searchRadar'] = {
@@ -47,9 +47,16 @@ samTypesDB = {
 					['NATO'] = 'Big Bird',
 				},
 			},
+			['S-300PS 40B6MD sr_19J6'] = {
+				['name'] = {
+					['NATO'] = 'Tin Shield',
+				},
+			}
 		},
 		['trackingRadar'] = {
 			['S-300PS 40B6M tr'] = {
+			},	
+			['S-300PS 5H63C 30H6_tr'] = {
 			},
 		},
 		['launchers'] = {
@@ -212,16 +219,18 @@ samTypesDB = {
 
 	},	
 	['Roland ADS'] = {
-		['type'] = 'single',
+		['type'] = 'complex',
 		['searchRadar'] = {
-			['Roland ADS'] = {
+			['Roland Radar'] = {
+				['name'] = {
+					['NATO'] = 'Roland EWR',
+				},
 			},
 		},
 		['launchers'] = {
 			['Roland ADS'] = {
 			},
 		},
-
 		['name'] = {
 			['NATO'] = 'Roland ADS',
 		},
@@ -396,8 +405,23 @@ samTypesDB = {
 			['NATO'] = 'CSA-4',
 		},
 		['harm_detection_chance'] = 30
-	},
---- Start of EW radars:
+	},	
+	['Phalanx'] = {
+		['type'] = 'single',
+		['searchRadar'] = {
+			['HEMTT_C-RAM_Phalanx'] = {
+			},
+		},
+		['launchers'] = {
+			['HEMTT_C-RAM_Phalanx'] = {
+			},
+		},
+		['name'] = {
+			['NATO'] = 'Phalanx',
+		},
+		['harm_detection_chance'] = 10
+	},	
+-- Start of RED EW radars:	
 	['1L13 EWR'] = {
 		['type'] = 'ewr',
 		['searchRadar'] = {
@@ -431,18 +455,29 @@ samTypesDB = {
 		},
 		['harm_detection_chance'] = 20
 	},
-	['Roland Radar'] = {
+-- Start of BLUE EW radars:
+	['FPS-117 Dome'] = {
 		['type'] = 'ewr',
 		['searchRadar'] = {
-			['Roland Radar'] = {
+			['FPS-117 Dome'] = {
 				['name'] = {
-					['NATO'] = 'Roland EWR',
+					['NATO'] = 'FPS-117 Dome',
 				},
 			},
 		},
-
-		['harm_detection_chance'] = 60
-	},	
+		['harm_detection_chance'] = 80
+	},
+	['FPS-117'] = {
+		['type'] = 'ewr',
+		['searchRadar'] = {
+			['FPS-117'] = {
+				['name'] = {
+					['NATO'] = 'FPS-117',
+				},
+			},
+		},
+		['harm_detection_chance'] = 80
+	}
 }
 end
 do
@@ -748,17 +783,6 @@ samTypesDB['S-300PMU2'] = {
 		},
 		['S-300PMU1 40B6MD sr'] = s300PMU140B6MDsr,
 		['S-300PMU1 64N6E sr'] = s300PMU164N6Esr,
-		
-		['S-300PS 40B6MD sr'] = {
-			['name'] = {
-				['NATO'] = '',
-			},
-		},		
-		['S-300PS 64H6E sr'] = {
-			['name'] = {
-				['NATO'] = '',
-			},
-		},
 	},
 	['trackingRadar'] = {
 		['S-300PMU2 92H6E tr'] = {
@@ -1173,7 +1197,15 @@ function SkynetIADS:create(name)
 		iads.name = ""
 	end
 	iads.contactUpdateInterval = 5
+	world.addEventHandler(iads)
 	return iads
+end
+
+function SkynetIADS:onEvent(event)
+	if (event.id == world.event.S_EVENT_BIRTH ) then
+		env.info("New Object Spawned")
+	--	self:addSAMSite(event.initiator:getGroup():getName());
+	end
 end
 
 function SkynetIADS:setUpdateInterval(interval)
@@ -1308,7 +1340,7 @@ function SkynetIADS:addSAMSitesByPrefix(prefix)
 		if pos and pos == 1 then
 			--mist returns groups, units and, StaticObjects
 			local dcsObject = Group.getByName(groupName)
-			if dcsObject then
+			if dcsObject and dcsObject:getUnits()[1]:isActive() then
 				self:addSAMSite(groupName)
 			end
 		end
@@ -2648,6 +2680,7 @@ function SkynetIADSAbstractRadarElement:goLive()
 	then
 		if self:isDestroyed() == false then
 			local  cont = self:getController()
+			cont:setOnOff(true)
 			cont:setOption(AI.Option.Ground.id.ALARM_STATE, AI.Option.Ground.val.ALARM_STATE.RED)	
 			cont:setOption(AI.Option.Air.id.ROE, AI.Option.Air.val.ROE.WEAPON_FREE)
 			self:getDCSRepresentation():enableEmission(true)
@@ -2680,9 +2713,15 @@ function SkynetIADSAbstractRadarElement:goDark()
 		-- point defence will only go live if the Radar Emitting site it is protecting goes dark and this is due to a it defending against a HARM
 		if (self.harmSilenceID ~= nil) then
 			self:pointDefencesGoLive()
+			if self:isDestroyed() == false then
+				--if site goes dark due to HARM we turn off AI, this is due to a bug in DCS multiplayer where the harm will find its way to the radar emitter if just setEmissions is set to false
+				local controller = self:getController()
+				controller:setOnOff(false)
+			end
 		end
 		self.aiState = false
 		self:stopScanningForHARMs()
+		self.cachedTargets = {}
 		if self.iads:getDebugSettings().radarWentDark then
 			self.iads:printOutputToLog("GOING DARK: "..self:getDescription())
 		end
@@ -3153,9 +3192,11 @@ function SkynetIADSContact:getTypeName()
 	if self:isIdentifiedAsHARM() then
 		return SkynetIADSContact.HARM
 	end
-	local category = self:getDCSRepresentation():getCategory()
-	if category == Object.Category.UNIT then
-		return self.typeName
+	if self:getDCSRepresentation() ~= nil then
+		local category = self:getDCSRepresentation():getCategory()
+		if category == Object.Category.UNIT then
+			return self.typeName
+		end
 	end
 	return "UNKNOWN"
 end
@@ -4000,31 +4041,31 @@ function SkynetIADSHARMDetection:cleanAgedContacts()
 end
 
 function SkynetIADSHARMDetection:getNewRadarsThatHaveDetectedContact(contact)
-	local newRadars = contact:getAbstractRadarElementsDetected()
-	local radars = self.contactRadarsEvaluated[contact]
-	if radars then
-		newRadars = {}
-		local contactRadars = contact:getAbstractRadarElementsDetected()
-		for i = 1, #contactRadars do
-			local contactRadar = contactRadars[i]
-			local newRadar = self:isElementInTable(radars, contactRadar)
-			if newRadar ~= nil then
-				table.insert(newRadars, newRadar)
-			end
+	local radarsFromContact = contact:getAbstractRadarElementsDetected()
+	local evaluatedRadars = self.contactRadarsEvaluated[contact]
+	local newRadars = {}
+	if evaluatedRadars == nil then
+		evaluatedRadars = {}
+		self.contactRadarsEvaluated[contact] = evaluatedRadars
+	end
+	for i = 1, #radarsFromContact do
+		local contactRadar = radarsFromContact[i]
+		if self:isElementInTable(evaluatedRadars, contactRadar) == false then
+			table.insert(evaluatedRadars, contactRadar)
+			table.insert(newRadars, contactRadar)
 		end
 	end
-	self.contactRadarsEvaluated[contact] = contact:getAbstractRadarElementsDetected()
 	return newRadars
 end
 
 function SkynetIADSHARMDetection:isElementInTable(tbl, element)
 	for i = 1, #tbl do
-		tblElement = tbl[i]
+		local tblElement = tbl[i]
 		if tblElement == element then
-			return nil
+			return true
 		end
 	end
-	return element
+	return false
 end
 
 function SkynetIADSHARMDetection:informRadarsOfHARM(contact)

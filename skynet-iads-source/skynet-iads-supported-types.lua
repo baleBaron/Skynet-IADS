@@ -1,6 +1,6 @@
 do
 --this file contains the required units per sam type
-samTypesDB = {
+samTypesDB = {	
 	['S-200'] = {
         ['type'] = 'complex',
         ['searchRadar'] = {
@@ -46,9 +46,16 @@ samTypesDB = {
 					['NATO'] = 'Big Bird',
 				},
 			},
+			['S-300PS 40B6MD sr_19J6'] = {
+				['name'] = {
+					['NATO'] = 'Tin Shield',
+				},
+			}
 		},
 		['trackingRadar'] = {
 			['S-300PS 40B6M tr'] = {
+			},	
+			['S-300PS 5H63C 30H6_tr'] = {
 			},
 		},
 		['launchers'] = {
@@ -211,16 +218,18 @@ samTypesDB = {
 
 	},	
 	['Roland ADS'] = {
-		['type'] = 'single',
+		['type'] = 'complex',
 		['searchRadar'] = {
-			['Roland ADS'] = {
+			['Roland Radar'] = {
+				['name'] = {
+					['NATO'] = 'Roland EWR',
+				},
 			},
 		},
 		['launchers'] = {
 			['Roland ADS'] = {
 			},
 		},
-
 		['name'] = {
 			['NATO'] = 'Roland ADS',
 		},
@@ -395,8 +404,23 @@ samTypesDB = {
 			['NATO'] = 'CSA-4',
 		},
 		['harm_detection_chance'] = 30
-	},
---- Start of EW radars:
+	},	
+	['Phalanx'] = {
+		['type'] = 'single',
+		['searchRadar'] = {
+			['HEMTT_C-RAM_Phalanx'] = {
+			},
+		},
+		['launchers'] = {
+			['HEMTT_C-RAM_Phalanx'] = {
+			},
+		},
+		['name'] = {
+			['NATO'] = 'Phalanx',
+		},
+		['harm_detection_chance'] = 10
+	},	
+-- Start of RED EW radars:	
 	['1L13 EWR'] = {
 		['type'] = 'ewr',
 		['searchRadar'] = {
@@ -430,17 +454,28 @@ samTypesDB = {
 		},
 		['harm_detection_chance'] = 20
 	},
-	['Roland Radar'] = {
+-- Start of BLUE EW radars:
+	['FPS-117 Dome'] = {
 		['type'] = 'ewr',
 		['searchRadar'] = {
-			['Roland Radar'] = {
+			['FPS-117 Dome'] = {
 				['name'] = {
-					['NATO'] = 'Roland EWR',
+					['NATO'] = 'FPS-117 Dome',
 				},
 			},
 		},
-
-		['harm_detection_chance'] = 60
-	},	
+		['harm_detection_chance'] = 80
+	},
+	['FPS-117'] = {
+		['type'] = 'ewr',
+		['searchRadar'] = {
+			['FPS-117'] = {
+				['name'] = {
+					['NATO'] = 'FPS-117',
+				},
+			},
+		},
+		['harm_detection_chance'] = 80
+	}
 }
 end
