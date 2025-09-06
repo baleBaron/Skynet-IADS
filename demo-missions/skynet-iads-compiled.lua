@@ -1,4 +1,4 @@
-env.info("--- SKYNET VERSION: baron-branch | BUILD TIME: 04.09.2025 2114Z ---")
+env.info("--- SKYNET VERSION: baron-branch | BUILD TIME: 06.09.2025 1159Z ---")
 do
 --this file contains the required units per sam type
 samTypesDB = {	
@@ -2531,8 +2531,8 @@ function SkynetIADSAbstractRadarElement:setupElements()
 		end
 		
 		--this check ensures a unit or group has all required elements for the specific sam or ew type:
-		if (hasLauncher and hasSearchRadar and hasTrackingRadar and #self.launchers > 0 and #self.searchRadars > 0  and #self.trackingRadars > 0 ) 
-			or (hasSearchRadar and hasLauncher and #self.searchRadars > 0 and #self.launchers > 0) then
+        if (hasLauncher and hasTrackingRadar and #self.launchers > 0 and #self.trackingRadars > 0 ) 
+            or (hasSearchRadar and hasLauncher and #self.searchRadars > 0 and #self.launchers > 0) then
 			self:setHARMDetectionChance(dataType['harm_detection_chance'])
 			self.dataBaseSupportedTypesCanEngageHARM = dataType['can_engage_harm'] 
 			self.dataBaseSupportedTypesCanFireOnMarch = dataType['fire_on_march']
