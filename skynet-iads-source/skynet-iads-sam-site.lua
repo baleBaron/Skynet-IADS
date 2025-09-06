@@ -72,6 +72,11 @@ function SkynetIADSSamSite:informOfContact(contact)
 	if ( self.targetsInRange == false and self:areGoLiveConstraintsSatisfied(contact) == true and self:isTargetInRange(contact) and ( contact:isIdentifiedAsHARM() == false or ( contact:isIdentifiedAsHARM() == true and self:getCanEngageHARM() == true ) ) ) then
 		self:goLive()
 		self.targetsInRange = true
+		
+		--this way we make all units aware of the first contact that triggered this SAM site
+		for i, unit in pairs(self:getDCSRepresentation():getUnits()) do 
+			unit:getController():knowTarget(contact:getDCSRepresentation())
+		end
 	end
 end
 
