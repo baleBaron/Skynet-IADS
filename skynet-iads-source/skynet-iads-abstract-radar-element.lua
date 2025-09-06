@@ -154,6 +154,13 @@ function SkynetIADSAbstractRadarElement:informChildrenOfStateChange()
 	self.iads:getMooseConnector():update()
 end
 
+function SkynetIADSAbstractRadarElement:hasWorkingSearchRadars()
+	for i, searchRadar in pairs(self.searchRadars) do
+		if searchRadar:isRadarWorking() then return true end
+	end
+	return false
+end
+
 function SkynetIADSAbstractRadarElement:setToCorrectAutonomousState()
 	local parents = self:getParentRadars()
 	for i = 1, #parents do
@@ -381,8 +388,8 @@ function SkynetIADSAbstractRadarElement:setupElements()
 		end
 		
 		--this check ensures a unit or group has all required elements for the specific sam or ew type:
-		if (hasLauncher and hasSearchRadar and hasTrackingRadar and #self.launchers > 0 and #self.searchRadars > 0  and #self.trackingRadars > 0 ) 
-			or (hasSearchRadar and hasLauncher and #self.searchRadars > 0 and #self.launchers > 0) then
+        if (hasLauncher and hasTrackingRadar and #self.launchers > 0 and #self.trackingRadars > 0 ) 
+            or (hasSearchRadar and hasLauncher and #self.searchRadars > 0 and #self.launchers > 0) then
 			self:setHARMDetectionChance(dataType['harm_detection_chance'])
 			self.dataBaseSupportedTypesCanEngageHARM = dataType['can_engage_harm'] 
 			self:setCanEngageHARM(self.dataBaseSupportedTypesCanEngageHARM)
@@ -595,11 +602,11 @@ end
 
 function SkynetIADSAbstractRadarElement:isTargetInRange(target)
 
+	local hasWorkingSearchRadar = self:hasWorkingSearchRadars()
 	local isSearchRadarInRange = false
 	local isTrackingRadarInRange = false
 	local isLauncherInRange = false
 	
-	local isSearchRadarInRange = ( #self.searchRadars == 0 )
 	for i = 1, #self.searchRadars do
 		local searchRadar = self.searchRadars[i]
 		if searchRadar:isInRange(target) then
@@ -608,7 +615,7 @@ function SkynetIADSAbstractRadarElement:isTargetInRange(target)
 		end
 	end
 	
-	if self.goLiveRange == SkynetIADSAbstractRadarElement.GO_LIVE_WHEN_IN_KILL_ZONE then
+	if not hasWorkingSearchRadar or self.goLiveRange == SkynetIADSAbstractRadarElement.GO_LIVE_WHEN_IN_KILL_ZONE then
 		
 		isLauncherInRange = ( #self.launchers == 0 )
 		for i = 1, #self.launchers do
@@ -631,7 +638,7 @@ function SkynetIADSAbstractRadarElement:isTargetInRange(target)
 		isLauncherInRange = true
 		isTrackingRadarInRange = true
 	end
-	return  (isSearchRadarInRange and isTrackingRadarInRange and isLauncherInRange )
+	return  ((isSearchRadarInRange or not hasWorkingSearchRadar) and isTrackingRadarInRange and isLauncherInRange )
 end
 
 function SkynetIADSAbstractRadarElement:isInRadarDetectionRangeOf(abstractRadarElement)
